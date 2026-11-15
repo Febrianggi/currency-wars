@@ -128,6 +128,19 @@ body.tb-away .fab{display:inline-flex;position:fixed;right:16px;bottom:16px;z-in
 .fab em{color:var(--acc);font-weight:700;margin-left:4px}
 .fab:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
 }
+.sheet{position:fixed;inset:auto 0 0 0;margin:0;width:100%;max-width:100%;max-height:min(80vh,640px);padding:0;border:0;border-radius:20px 20px 0 0;background:var(--card);color:var(--ink);box-shadow:0 -12px 40px -12px rgba(0,0,0,.35)}
+.sheet[open]{display:flex;flex-direction:column}.sheet::backdrop{background:rgba(8,14,22,.5)}
+.sh-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px}.sh-head h2{font-size:19px}
+.sh-x{width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--inp);color:var(--ink);font-size:16px;cursor:pointer}
+.sh-per{display:flex;gap:8px;overflow-x:auto;padding:4px 20px 12px;scrollbar-width:none}.sh-per::-webkit-scrollbar{display:none}
+.sh-per button{flex:none;height:36px;padding:0 14px;border:1px solid var(--line);border-radius:999px;background:var(--inp);color:var(--mut);font:700 13px Atkinson,sans-serif;cursor:pointer}.sh-per button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.sh-q{padding:0 20px 12px;border-bottom:1px solid var(--line)}.sh-q input{width:100%;height:44px;font-size:16px}
+.sh-list{list-style:none;margin:0;padding:6px 8px calc(12px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain}
+.sh-list button{display:flex;align-items:center;gap:14px;width:100%;min-height:48px;padding:8px 12px;border:0;border-radius:12px;background:none;color:var(--ink);text-align:left;font:15px Atkinson,sans-serif;cursor:pointer}
+.sh-list button b{font:700 14px var(--num);width:44px;flex:none}.sh-list button span{color:var(--mut)}
+.sh-list button:hover{background:var(--soft)}.sh-list button.on{background:color-mix(in srgb,var(--idr) 14%,transparent)}.sh-list button.on span{color:var(--ink)}
+.sh-list button:focus-visible,.sh-per button:focus-visible,.sh-x:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.sh-none{padding:20px 12px;color:var(--mut)}.sh-head,.sh-per,.sh-q{flex:none}.sh-list{flex:1 1 auto;min-height:0}
 [hidden]{display:none!important}
 </style></head>
 <body>
@@ -268,7 +281,13 @@ body.tb-away .fab{display:inline-flex;position:fixed;right:16px;bottom:16px;z-in
   <div class="card" style="margin-top:24px"><h3>Method and data notes</h3><dl id="notes"></dl></div>
 </section>
 </main>
-<button class="fab st" id="fab" type="button"></button>
+<button class="fab st" id="fab" type="button" aria-haspopup="dialog"></button>
+<dialog class="sheet" id="sheet" aria-labelledby="sheetT">
+  <div class="sh-head"><h2 id="sheetT">Choose a currency</h2><button class="sh-x" id="sheetX" type="button" aria-label="Close">✕</button></div>
+  <div class="sh-per" id="sheetPer" role="group" aria-label="Period for comparisons"></div>
+  <div class="sh-q"><input type="search" id="sheetQ" placeholder="Search code or name" aria-label="Search currencies" autocomplete="off"></div>
+  <ul class="sh-list" id="sheetList" role="listbox" aria-label="Currencies"></ul>
+</dialog>
 <footer id="foot">Currency Wars · x̄ control chart of currencies against the IMF's SDR · rates from XE</footer>
 
 <script>/*!
@@ -801,7 +820,18 @@ setTheme(!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matche
 try{setModel(parseModel(BUILTIN),SRC,BUILTIN)}catch(e){$('#loadErr').innerHTML='<div class="err">'+esc(e.message)+'</div>'}
 loadLive();setInterval(loadLive,18e5);
 if('IntersectionObserver' in window)new IntersectionObserver(([e])=>document.body.classList.toggle('tb-away',!e.isIntersecting&&e.boundingClientRect.top<0),{rootMargin:'-64px 0px 0px 0px'}).observe($('#toolbar'));
-$('#fab').onclick=()=>{$('#toolbar').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});setTimeout(()=>$('#selC').focus({preventScroll:true}),350)};document.addEventListener('visibilitychange',()=>{if(!document.hidden&&LIVE.checked&&Date.now()-LIVE.checked>6e5)loadLive()});
+const goTop=()=>{$('#toolbar').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});setTimeout(()=>$('#selC').focus({preventScroll:true}),350)};
+const sheet=$('#sheet');
+function sheetPer(){$('#sheetPer').innerHTML=M.periods.map(p=>'<button type="button" data-p="'+p+'" aria-pressed="'+(p===st.period)+'" class="'+(p===st.period?'on':'')+'">'+(p==='Latest'?'Latest month':p)+'</button>').join('');
+  $$('#sheetPer button').forEach(b=>b.onclick=()=>{st.period=b.dataset.p;sync();renderAll();sheetPer()})}
+function sheetList(){const q=$('#sheetQ').value.trim().toLowerCase(),opts=[...$('#selC').options].filter(o=>!q||o.text.toLowerCase().includes(q));
+  $('#sheetList').innerHTML=opts.length?opts.map(o=>{const i=o.text.indexOf(' · '),on=o.value===st.country;return '<li><button type="button" role="option" aria-selected="'+on+'" data-c="'+esc(o.value)+'" class="'+(on?'on':'')+'"><b>'+esc(o.value)+'</b><span>'+esc(i>0?o.text.slice(i+3):o.text)+'</span></button></li>'}).join(''):'<li class="sh-none">No currency matches "'+esc(q)+'".</li>';
+  $$('#sheetList button').forEach(b=>b.onclick=()=>{st.country=b.dataset.c;$('#selC').value=st.country;renderAll();sheet.close()})}
+$('#fab').onclick=()=>{if(!sheet.showModal)return goTop();$('#sheetQ').value='';sheetPer();sheetList();sheet.showModal();const on=$('#sheetList .on');if(on)on.scrollIntoView({block:'center'});$('#sheetList').scrollTop=Math.max(0,$('#sheetList').scrollTop);(on||$('#sheetQ')).focus({preventScroll:true})};
+$('#sheetQ').oninput=sheetList;$('#sheetX').onclick=()=>sheet.close();
+sheet.addEventListener('click',e=>{if(e.target===sheet)sheet.close()});
+sheet.addEventListener('close',()=>$('#fab').focus({preventScroll:true}));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&LIVE.checked&&Date.now()-LIVE.checked>6e5)loadLive()});
 window.__dash={LIVE,loadLive,applyStore,st,get M(){return M},parseModel,readWorkbook};
 })();
 </script>
