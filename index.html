@@ -103,6 +103,31 @@ footer{text-align:center;color:var(--mut);font-size:13.5px;padding:8px 20px 48px
 @media(max-width:900px){.toolbar{top:72px}html{scroll-padding-top:150px}}
 @media(max-width:640px){.toolbar{padding:12px 14px;gap:10px 12px;border-radius:14px}.toolbar .fl{font-size:12px}#selC{width:100%}.tb-ctl>.fld:first-of-type{flex:1 1 100%}.tb-ctl{gap:10px 12px}.seg#perSeg{flex-wrap:nowrap;overflow-x:auto;max-width:100%}.seg#perSeg button{flex:none}.toolbar.stuck .tb-per{display:none}.toolbar>*{min-width:0;max-width:100%}.toolbar .fld{min-width:0}.tb-status{padding-top:10px;gap:6px}.st .pl{display:none}.st{height:28px;font-size:12.5px;padding:0 10px}}
 @media(prefers-reduced-motion:reduce){.st.flash{animation:none}.toolbar{transition:none}}
+/* layout: control panel as a right-hand column on wide screens, a normal block above the content on smaller ones */
+.toolbar{position:static}
+.fab{display:none}
+@media(min-width:1180px){
+.top-in{max-width:1520px}
+html{scroll-padding-top:88px}
+main{max-width:1520px;display:grid;grid-template-columns:minmax(0,1fr) 300px;column-gap:32px;align-items:start}
+main>*{grid-column:1;min-width:0}
+main>.toolbar{grid-column:2;grid-row:1/span 40;align-self:start;position:sticky;top:88px;display:flex!important;flex-direction:column;align-items:stretch!important;gap:20px;padding:24px 22px;margin:0;max-height:calc(100vh - 112px);overflow:auto}
+.tb-ctl{flex-direction:column;align-items:stretch;gap:20px}
+.tb-ctl #selC{width:100%;min-width:0}
+.seg#perSeg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:var(--line)}.seg#perSeg button:first-child{grid-column:1/-1}
+main .kp{display:flex;flex-wrap:wrap}main .kp .k{flex:1 1 190px}
+.seg#perSeg button{border:0;background:var(--inp);padding:0 6px}.seg#perSeg button.on{background:var(--ink);color:var(--bg)}
+.tb-ctl #btnReset{width:100%}
+.tb-status{padding:20px 0 0!important;border:0!important;border-top:1px solid var(--line)!important;flex-direction:column!important;align-items:stretch;gap:10px}
+.tb-status .st{height:auto;min-height:32px;white-space:normal;flex-wrap:wrap;row-gap:2px;padding:7px 12px;border-radius:12px;line-height:1.35}
+.tb-status .st .pl{display:inline}
+}
+@media(max-width:1179px){
+html{scroll-padding-top:80px}
+body.tb-away .fab{display:inline-flex;position:fixed;right:16px;bottom:16px;z-index:30;height:44px;padding:0 16px;font-size:13.5px;cursor:pointer;box-shadow:0 8px 24px -8px rgba(14,26,43,.4);background:var(--card)}
+.fab em{color:var(--acc);font-weight:700;margin-left:4px}
+.fab:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+}
 [hidden]{display:none!important}
 </style></head>
 <body>
@@ -122,7 +147,6 @@ footer{text-align:center;color:var(--mut);font-size:13.5px;padding:8px 20px 48px
 <main>
 <div id="loadErr"></div>
 
-<div id="tbSentinel" aria-hidden="true"></div>
 <div class="toolbar" id="toolbar" role="group" aria-label="Choose what the dashboard shows">
   <div class="tb-ctl">
   <label class="fld"><span class="fl">Country or currency</span><select id="selC"></select></label>
@@ -244,6 +268,7 @@ footer{text-align:center;color:var(--mut);font-size:13.5px;padding:8px 20px 48px
   <div class="card" style="margin-top:24px"><h3>Method and data notes</h3><dl id="notes"></dl></div>
 </section>
 </main>
+<button class="fab st" id="fab" type="button"></button>
 <footer id="foot">Currency Wars · x̄ control chart of currencies against the IMF's SDR · rates from XE</footer>
 
 <script>/*!
@@ -654,6 +679,7 @@ function renderStatus(){
   const html='<span class="st '+own+'" title="Latest value on its own control chart"><i></i><em>'+esc(c)+(last.d===M.liveD?' live':' '+esc(mon(last.d)))+'</em><b>'+esc(fv(c,last.v))+'</b>'+ownTxt+'</span>'+
     '<span class="st '+ws+'" title="z-score against the world limits for the chosen period"><i></i><em>vs world<span class="pl">, '+esc(pl)+'</span></em>'+(me?'<b>z '+esc(sg(me.z))+'</b>'+esc(me.status):'no data')+'</span>';
   const el=$('#tbStatus'),key=c+'|'+st.period+'|'+own+'|'+ws+'|'+last.v;
+  const fb=$('#fab');if(fb){fb.className='fab st '+own;fb.innerHTML='<i></i><b>'+esc(c)+'</b>'+ownTxt+'<em>Change</em>';fb.setAttribute('aria-label',c+' '+ownTxt+'. Go to the currency picker')}
   if(el.dataset.k!==key){el.innerHTML=html;if(el.dataset.k)$$('.st',el).forEach(x=>x.classList.add('flash'));el.dataset.k=key}}
 function renderAll(){if(!M)return;setTimeout(()=>$$('.kp').forEach(e=>e.style.setProperty('--n',e.children.length)),0);renderHero();renderStatus();fillRange();drawCC();renderWorld();renderAsean();renderExplore();renderData();renderSource();let n=0;$$('main section').forEach(sec=>{if(sec.hidden)return;n++;const e=$('.n',sec);if(e)e.textContent=String(n).padStart(2,'0')})}
 function sync(){
@@ -774,7 +800,8 @@ let rt;addEventListener('resize',()=>{clearTimeout(rt);rt=setTimeout(()=>Object.
 setTheme(!!(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches));
 try{setModel(parseModel(BUILTIN),SRC,BUILTIN)}catch(e){$('#loadErr').innerHTML='<div class="err">'+esc(e.message)+'</div>'}
 loadLive();setInterval(loadLive,18e5);
-if('IntersectionObserver' in window)new IntersectionObserver(([e])=>$('#toolbar').classList.toggle('stuck',!e.isIntersecting&&e.boundingClientRect.top<0),{rootMargin:'-77px 0px 0px 0px'}).observe($('#tbSentinel'));document.addEventListener('visibilitychange',()=>{if(!document.hidden&&LIVE.checked&&Date.now()-LIVE.checked>6e5)loadLive()});
+if('IntersectionObserver' in window)new IntersectionObserver(([e])=>document.body.classList.toggle('tb-away',!e.isIntersecting&&e.boundingClientRect.top<0),{rootMargin:'-64px 0px 0px 0px'}).observe($('#toolbar'));
+$('#fab').onclick=()=>{$('#toolbar').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'});setTimeout(()=>$('#selC').focus({preventScroll:true}),350)};document.addEventListener('visibilitychange',()=>{if(!document.hidden&&LIVE.checked&&Date.now()-LIVE.checked>6e5)loadLive()});
 window.__dash={LIVE,loadLive,applyStore,st,get M(){return M},parseModel,readWorkbook};
 })();
 </script>
