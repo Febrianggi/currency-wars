@@ -1,5 +1,7 @@
 # Currency Wars
 
+**English** · [Bahasa Indonesia](README.id.md)
+
 An interactive dashboard that shows how any currency behaves against the IMF's Special Drawing Rights (SDR) and how it compares with ASEAN and world currencies. It opens on the Indonesian rupiah (IDR) and you can pick any other currency. It uses an x̄ control chart and runs from a single `index.html` file in the browser.
 
 Live page: https://febrianggi.github.io/currency-wars/
