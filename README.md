@@ -2,75 +2,96 @@
 
 **English** · [Bahasa Indonesia](README.id.md)
 
-An interactive dashboard that shows how any currency behaves against the IMF's Special Drawing Rights (SDR) and how it compares with ASEAN and world currencies. It opens on the Indonesian rupiah (IDR) and you can pick any other currency. It uses an x̄ control chart and runs from a single `index.html` file in the browser.
+An interactive dashboard that tracks how the Indonesian rupiah (IDR) and other currencies move against the IMF's Special Drawing Rights (SDR), and compares each currency against ASEAN and world peers using an x-bar control chart. It opens on IDR, supports switching to any currency in the dataset, and runs in the browser from a single `index.html` file.
 
-Live page: https://febrianggi.github.io/currency-wars/
+- **Live dashboard:** https://febrianggi.github.io/currency-wars/
 
-## What it shows
+## Key findings
+
+Across the saved monthly snapshot in [`data/rates.json`](data/rates.json) (171 currencies across 67 month-ends from April 2021 to October 2026; updated daily by GitHub Actions):
+
+- **IDR sits on the weak side of its control band:** Over the 67 monthly observations, IDR averages **21,296.51** per 1 SDR (sample SD **1,450.77**, lower control limit **18,394.97**, upper control limit **24,198.05**).
+- **Six consecutive out-of-control months in 2026:** IDR stayed above the upper control limit (weaker than normal historical variation) every month from May 2026 (**24,453.90**) through October 2026 (**24,842.63**), with the latest daily live reading at **24,594.29** per SDR.
+- **Cross-currency context:** Standardizing each currency into a z-score against its own history separates broad dollar/SDR moves from country-specific weakness across ASEAN and global peers. Open the live dashboard for the most recent daily values.
+
+## What the dashboard shows
 
 | Section | Content |
 |---|---|
-| Overview | The latest value for the selected currency, a meter showing where it sits between the limits, a row of key numbers, and its per SDR control chart with center line, upper and lower control limits, out-of-control months, a date range and optional recomputed limits |
-| vs World | A control chart across every currency in the data (each point is a z-score), with the limits and the currencies that fall outside them |
-| vs ASEAN | The same chart for the ten ASEAN currencies. It appears only when the selected currency is an ASEAN member |
-| Country view | A written conclusion for the selected currency, its monthly z-score control chart, and its yearly position against a second currency |
-| Data tables | Selected currency, world ranking and selected-vs-compared tables with a date range, search, status filter, sorting and CSV download |
-| Live data and sources | Status of the XE feed, the Python scraper, your own workbook, and the method notes |
+| **Overview** | Latest rate for the selected currency, a gauge showing its position between control limits, summary cards, and its per-SDR x-bar control chart with center line, upper and lower control limits, out-of-control months, a date range selector, and optional recomputed limits. |
+| **vs World** | Control chart across every currency in the dataset (each point is a z-score), highlighting the limits and currencies currently outside them. |
+| **vs ASEAN** | The same z-score comparison for the ten ASEAN currencies. Appears whenever the selected currency is an ASEAN member. |
+| **Country view** | Plain-language summary for the selected currency, its monthly z-score control chart, and its yearly trajectory compared against a second currency. |
+| **Data tables** | Tables for the selected currency, world ranking, and two-currency comparison with date filtering, search, status filter, column sorting, and CSV download. |
+| **Live data and sources** | Status of the XE feed, in-browser Python scraper button, custom Excel workbook loader, and method notes. |
 
-The page has a light and a dark mode. Every chart and sentence updates when you change the currency or the period at the top.
+The dashboard includes light and dark modes. Every chart, table, and summary updates automatically when you change the currency or date range at the top.
 
-## How to read it
+## How to read the charts
 
-The rate is units of the selected currency per one SDR, so a higher value means a weaker currency. The center line is the mean, and the control limits sit two sample standard deviations either side. A point beyond a limit means the currency moved further from its own average than normal variation explains.
+- **Rate direction:** Rates are quoted in units of the selected currency per 1 SDR. A higher value means more local currency is needed for 1 SDR, which means a **weaker** currency.
+- **Control limits:** The center line is the sample mean across the selected period, and the upper/lower control limits sit two sample standard deviations (`mean ± 2 SD`) on either side. Any point beyond a limit is flagged as out of control relative to historical variation.
+- **Z-score comparisons:** To compare currencies on different scales, each currency is standardized against its own history. A positive z-score means the currency is weaker than its own historical average; yearly values are the average of that year's monthly z-scores.
 
-For comparisons, each currency is standardized against its own history (z-score). A positive z-score means the currency is weaker than its own average, and a z-score beyond the limits means it is out of control. Yearly values are the average of that year's monthly z-scores.
+## How to run locally
+
+Serve the repository root over HTTP so `index.html` can fetch `data/rates.json` cleanly:
+
+```bash
+python -m http.server 8000
+```
+
+Then open http://localhost:8000 in your browser. Stop the server with `Ctrl+C`.
+
+If you edit [`scripts/xe_scraper.py`](scripts/xe_scraper.py), refresh the embedded browser copy and run the unit tests from the repository root:
+
+```bash
+python scripts/embed_python.py
+python -m unittest discover -s tests
+```
 
 ## Live data from XE
 
-The rates come from the XE Currency Exchange Rate Tables with SDR (XDR) as the base: https://www.xe.com/currencytables/?from=XDR
+Rates come from the [XE Currency Exchange Rate Tables](https://www.xe.com/currencytables/?from=XDR) using SDR (`XDR`) as the base:
 
+```text
+XE -> scripts/update_data.py (GitHub Actions, hourly) -> data/rates.json -> index.html
 ```
-XE  ->  scripts/update_data.py (GitHub Actions, every hour)  ->  data/rates.json  ->  index.html
-```
 
-- `scripts/xe_scraper.py` reads an XE table. It uses only the Python standard library.
-- `scripts/update_data.py` adds any missing month ends and the latest daily table to `data/rates.json`. The workflow `.github/workflows/update-data.yml` runs it every hour and commits only when XE published something new (XE updates its table once a day).
-- `index.html` reads `data/rates.json` when it opens and every 30 minutes while it stays open. The newest daily table appears as one extra point labelled "live" after the last month end. It becomes a normal month-end value once the month closes.
-- The Python code is also inside `index.html`. **Run the Python scraper here** (in the Live data section) loads Pyodide, which is Python in the browser, and runs that code. A browser can only read XE directly if XE allows it. XE does not send the headers for that, so the browser normally blocks the request and the page keeps the data from `data/rates.json`. The page says so when it happens.
+- [`scripts/xe_scraper.py`](scripts/xe_scraper.py) parses an XE table using only the Python standard library.
+- [`scripts/update_data.py`](scripts/update_data.py) fills any missing month-ends and appends the latest daily table to [`data/rates.json`](data/rates.json). The workflow [`.github/workflows/update-data.yml`](.github/workflows/update-data.yml) runs hourly and commits only when XE publishes new data (typically once per day).
+- `index.html` loads `data/rates.json` on startup and refreshes every 30 minutes while open. The newest daily reading appears as one extra **live** point after the latest month-end until the month closes.
+- **Run the Python scraper here** (in **Live data and sources**) loads Pyodide to run the embedded Python scraper in the browser. Because XE does not send CORS headers for direct browser fetches, the browser normally blocks the request, explains why, and keeps the data from `data/rates.json`.
 
-First time: open the **Actions** tab, choose **Update XE rates**, and press **Run workflow**. This fills the months after the last row of `data.xlsx` and adds the live value.
-
-Edited `scripts/xe_scraper.py`? Run `python scripts/embed_python.py` so the copy in the page matches, and `python -m unittest discover -s tests` to check.
-
-Check XE's terms of use before scraping at scale. The job waits between requests, but XE can change its layout or block automated access. If a run fails, the page keeps the previous data.
+To populate a fresh fork, open the **Actions** tab, select **Update XE rates**, and click **Run workflow**. Check XE's terms of use before scraping at scale; if an automated run fails, the dashboard keeps its previous dataset.
 
 ## Use your own Excel workbook
 
-The dashboard can also read a workbook directly. In the **Live data and sources** section, choose an `.xlsx` file or drop it on the drop area. A built-in copy (`data.xlsx`) works without choosing a file. Nothing is uploaded; the file is read in your browser. In Chrome and Edge, **Refresh from the same file** re-reads the file after you save it in Excel.
+In **Live data and sources**, select or drop an `.xlsx` file to inspect your own rates locally in the browser (nothing is uploaded). The bundled [`data.xlsx`](data.xlsx) works out of the box. In Chrome and Edge, **Refresh from the same file** reloads updates after you save in Excel.
 
-`data.xlsx` has one sheet named `Global Data` (dates in column A, currency codes in row 1). The dashboard takes the IDR series and the ten ASEAN currencies from it. The sheets `Data IDR`, `Data ASEAN`, `IDR VS ASEAN` and `IDR VS Global` are optional.
+Place dates in column A and currency codes in row 1 of a sheet named **Global Data**. The dashboard extracts IDR and the ten ASEAN currencies from that sheet; `Data IDR`, `Data ASEAN`, `IDR VS ASEAN`, and `IDR VS Global` are optional.
 
 ## Notebooks
 
-- `currency_control_chart.ipynb` repeats the main calculations in Python in Google Colab: z-scores, the control chart of the selected currency, the world control chart and the yearly position of two currencies.
-- `fetch_xe_data.ipynb` downloads the monthly rates from XE into an Excel workbook.
+- [`currency_control_chart.ipynb`](currency_control_chart.ipynb): reproduces the main calculations in Python (Google Colab), including z-scores, selected-currency and world control charts, and yearly two-currency comparisons.
+- [`fetch_xe_data.ipynb`](fetch_xe_data.ipynb): downloads monthly XE rates into an Excel workbook.
 
-## Files
+## Repository structure
 
-```
-index.html                         the whole dashboard
-data/rates.json                    monthly rates and the live value, refreshed by the workflow
-scripts/xe_scraper.py              reads an XE table (also embedded in index.html)
-scripts/update_data.py             updates data/rates.json
-scripts/embed_python.py            copies xe_scraper.py into index.html
-tests/test_xe_scraper.py           tests for the scraper
-.github/workflows/update-data.yml  hourly job
-currency_control_chart.ipynb       Colab notebook with the same calculations
-fetch_xe_data.ipynb                Colab notebook that downloads the rates from XE
-data.xlsx                          the source workbook
-```
+| Path | Contents |
+|---|---|
+| [`index.html`](index.html) | Self-contained dashboard |
+| [`data/rates.json`](data/rates.json) | Monthly history and latest daily reading updated by GitHub Actions |
+| [`scripts/xe_scraper.py`](scripts/xe_scraper.py) | XE table parser (also embedded in `index.html`) |
+| [`scripts/update_data.py`](scripts/update_data.py) | Updates `data/rates.json` |
+| [`scripts/embed_python.py`](scripts/embed_python.py) | Syncs `xe_scraper.py` into `index.html` |
+| [`tests/test_xe_scraper.py`](tests/test_xe_scraper.py) | Unit tests for the scraper |
+| [`.github/workflows/update-data.yml`](.github/workflows/update-data.yml) | Hourly automated update workflow |
+| [`currency_control_chart.ipynb`](currency_control_chart.ipynb) | Colab analysis notebook |
+| [`fetch_xe_data.ipynb`](fetch_xe_data.ipynb) | Colab XE data fetcher |
+| [`data.xlsx`](data.xlsx) | Bundled fallback Excel workbook |
 
 ## Technical notes
 
-- Plain HTML, CSS and JavaScript in one file. No build step is needed to use it.
-- Charts use [Chart.js](https://www.chartjs.org/) 4.4.1 and Excel parsing uses [SheetJS](https://sheetjs.com/) 0.18.5. Both are inlined. Pyodide 0.26.4 is downloaded only when you press the Python button.
+- Plain HTML, CSS, and JavaScript in one file with no build step.
+- [Chart.js](https://www.chartjs.org/) 4.4.1 and [SheetJS](https://sheetjs.com/) 0.18.5 are inlined. Pyodide 0.26.4 is downloaded only when you click the Python scraper button.
